@@ -1,0 +1,438 @@
+{
+  "name": "LexIA - Legal Document Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "c902b70c-be9a-4c82-9a54-b39370c055f1",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        64,
+        1168
+      ],
+      "webhookId": "b0000000-0000-4000-8000-0000000000f2"
+    },
+    {
+      "parameters": {
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are LexIA, an assistant specialized in analyzing legal and administrative documents (contracts, leases, terms and conditions, official letters).\n\nRULES\n1. For any question about a document, ALWAYS use the legal_documents tool before answering.\n2. Rely only on the retrieved content. Never invent a clause, date or amount. If the information is missing, say so clearly.\n3. Cite your source for every important statement: document name and the relevant article or passage.\n4. Explain in plain language, then give the exact legal term when useful.\n5. Use the Calculator tool for any calculation (penalties, notice periods, amounts, deadlines).\n6. Always answer in the same language as the user's question (for example French or English), with a professional tone.\n7. End every analysis with this disclaimer, in the user's language: \"This analysis helps you understand the document but does not replace the advice of a lawyer or legal professional.\"\n\nANALYSIS TEMPLATE\nWhen the user asks you to analyze a document, answer with this structure:\n- Document type and purpose\n- Parties involved\n- Key dates (signature, term, expiry, notice period)\n- Amounts and financial terms\n- Main obligations of each party\n- Termination conditions\n- Sensitive clauses (automatic renewal, penalties, exclusivity, confidentiality, limitation of liability), with a risk level: low, medium or high\n- Points to check with a professional",
+          "maxIterations": 10
+        }
+      },
+      "id": "2b3ac853-3f44-4e6f-bdca-bd1d14089e64",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "id": "4bb8a2ba-5c76-4d67-835d-5bac5b558edb",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        464,
+        1408
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "22696196-9136-406e-a462-e619d26b1ac8",
+      "name": "Calculator",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        672,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": "legal_documents"
+      },
+      "id": "1ef496db-2d2d-446b-9cf9-74323bb34c95",
+      "name": "Vector Store (Insert)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-embed-1b",
+        "options": {}
+      },
+      "id": "e0c44751-4a61-40b2-ae3d-2e228949ea92",
+      "name": "NVIDIA Embeddings (Documents)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        384,
+        608
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NVIDIA NIM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Upload a legal document",
+        "formDescription": "Upload a contract, lease, terms and conditions or administrative letter (PDF, DOCX or TXT). Use only public or fictitious documents for testing.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Document",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".pdf,.docx,.txt",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Document added to the knowledge base. You can now ask questions about it in the assistant chat."
+            }
+          }
+        }
+      },
+      "id": "a7193743-4463-42cd-ba61-5d3123235f9f",
+      "name": "Upload Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        384
+      ],
+      "webhookId": "6e776244-cd92-46ae-a45a-b4d5ada64f60"
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "binaryMode": "specificField",
+        "binaryDataKey": "Document",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "source",
+                "value": "={{ $json.Document?.filename || 'document' }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "71365734-5ae4-4b1c-b105-5125f5a0d01e",
+      "name": "Document Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 1200,
+        "chunkOverlap": 200,
+        "options": {}
+      },
+      "id": "be8b4fe3-ff29-4147-a57d-614f86f43156",
+      "name": "Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        752,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nvidia/nemotron-3-ultra-550b-a55b"
+        },
+        "options": {
+          "maxTokens": 4096,
+          "temperature": 0.2
+        }
+      },
+      "id": "48048c6b-56b8-47a8-b089-42e63e994f2b",
+      "name": "Nemotron 3 Ultra (Primary)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        1408
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NVIDIA NIM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nvidia/nemotron-3.5-lightning-30b-a3b"
+        },
+        "options": {
+          "maxTokens": 4096,
+          "temperature": 0.2
+        }
+      },
+      "id": "12241e04-0191-4aef-a13e-dd5a890a89c5",
+      "name": "Nemotron 3.5 Lightning (Fallback)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        1408
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NVIDIA NIM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "legal_documents",
+        "toolDescription": "Searches for relevant passages in the legal and administrative documents uploaded by the user. Use it for any question about a contract, clause, date, amount or obligation.",
+        "memoryKey": "legal_documents",
+        "topK": 6
+      },
+      "id": "b355b099-8445-40a7-9b21-a62678f61103",
+      "name": "Document Search",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-embed-1b",
+        "options": {}
+      },
+      "id": "7e5b2e76-5bd7-432c-933d-a044e7db5315",
+      "name": "NVIDIA Embeddings (Query)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        944,
+        1616
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "NVIDIA NIM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# LexIA — Legal Document Analysis Assistant\nPowered by NVIDIA Nemotron 3 (Ultra + Lightning) and Nemotron Embed.\n\n1\\) Upload a document through the form. 2) Ask your questions in the chat.\n\nBoth parts share the `legal_documents` vector store.\n\n**The two flows are independent and communicate through the shared vector store.**",
+        "height": 208,
+        "width": 1168,
+        "color": 7
+      },
+      "id": "f3153b94-b289-4f43-bc9f-c5760d7ab74e",
+      "name": "Note - Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Document upload\nOpen the form and upload a PDF, DOCX or TXT file. The text is split into chunks, embedded with NVIDIA Nemotron Embed and stored in the `legal_documents` vector store.",
+        "height": 736,
+        "width": 1168,
+        "color": 4
+      },
+      "id": "6a23d15b-b14a-422a-9e55-a88f440af6e3",
+      "name": "Note - Document Upload",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Legal assistant\nAsk your questions in the chat. The agent searches the SAME `legal_documents` vector store, then answers with Nemotron 3 Ultra (Nemotron 3.5 Lightning as fallback).",
+        "height": 768,
+        "width": 1168,
+        "color": 5
+      },
+      "id": "6f360ad7-4aee-475f-9b05-6fec795a5186",
+      "name": "Note - Legal Assistant",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1040
+      ]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Embeddings (Documents)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Vector Store (Insert)",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Form": {
+      "main": [
+        [
+          {
+            "node": "Vector Store (Insert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Vector Store (Insert)",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nemotron 3 Ultra (Primary)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nemotron 3.5 Lightning (Fallback)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Document Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Embeddings (Query)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Document Search",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
